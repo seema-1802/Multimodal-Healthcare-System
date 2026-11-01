@@ -5,7 +5,7 @@ import pandas as pd
 from PIL import Image
 from flask import Flask, render_template, request
 import tensorflow as tf
-
+from db import log_prediction, fetch_all_predictions
 app = Flask(__name__)
 
 # Configure upload directory
@@ -43,7 +43,10 @@ BLOOD_COMPATIBILITY = {
     "AB-": {"donate": "AB+, AB-", "receive": "AB-, A-, B-, O-"},
     "Not_Valid": {"donate": "Invalid Sample / Unclear Slide", "receive": "Please re-test with a clear blood smear"}
 }
-
+@app.route("/history")
+def history():
+    records = fetch_all_predictions()
+    return render_template("history.html", records=records)
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -84,7 +87,14 @@ def brain_tumor():
                 {"name": name, "prob": round(float(prob) * 100, 2)}
                 for name, prob in zip(BRAIN_CLASSES, predictions)
             ]
-
+# Database me result log karein
+            log_prediction(
+                patient_name="Guest",
+                module_type="Brain Tumor",
+                prediction_result=prediction_result["class"],
+                confidence=prediction_result["confidence"],
+                additional_info="MRI Scan Analysis"
+            )
     return render_template("brain_tumor.html", result=prediction_result, image_url=image_url, breakdown=breakdown)
 
 # ----------------- Module 2: Heart Disease (ECG) -----------------
@@ -141,6 +151,14 @@ def heart_disease():
                 for name, prob in zip(HEART_CLASSES, predictions)
             ]
             raw_signal_preview = [round(float(v), 4) for v in signal_array[:25]]
+# Database me result log karein
+            log_prediction(
+                patient_name="Guest",
+                module_type="Heart Disease",
+                prediction_result=prediction_result["class"],
+                confidence=prediction_result["confidence"],
+                additional_info="ECG Signal Sequence (187 points)"
+            )
 
     return render_template(
         "heart_disease.html",
@@ -179,7 +197,15 @@ def blood_group():
             "donate": "Information Not Available",
             "receive": "Information Not Available"
         })
+# Database me result log karein
 
+        log_prediction(
+            patient_name="Guest",
+            module_type="Blood Group",
+            prediction_result=predicted_class,
+            confidence=confidence_val,
+            additional_info=f"Donate: {compat['donate']} | Receive: {compat['receive']}"
+        )
         # Aapke HTML template ke exact variables:
         return render_template(
             "blood_group.html",
@@ -194,3 +220,5 @@ def blood_group():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+   
+  
