@@ -23,7 +23,7 @@ BLOOD_MODEL_PATH = os.path.join("models", "blood_group_cnn_model.keras")
 # blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
 import gc
 import tensorflow as tf
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _brain_model = None
 _heart_model = None
 _blood_model = None
@@ -53,7 +53,9 @@ def get_blood_model():
     _heart_model = None
     gc.collect()
     if _blood_model is None:
-        _blood_model = tf.keras.models.load_model("path/to/blood_model.h5") # apna exact path daalein
+        # Aapka exact relative path:
+        model_path = os.path.join(BASE_DIR, "models", "blood_group_cnn_model.keras")
+        _blood_model = tf.keras.models.load_model(model_path)
     return _blood_model
 BRAIN_CLASSES = ["glioma", "meningioma", "notumor", "pituitary"]
 HEART_CLASSES = [
