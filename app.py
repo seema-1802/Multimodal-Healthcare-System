@@ -8,6 +8,7 @@ import tensorflow as tf
 from db import log_prediction, fetch_all_predictions
 app = Flask(__name__)
 import os
+
 # TensorFlow memory aur thread limiting
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -278,6 +279,8 @@ def blood_group():
             "donate": "Information Not Available",
             "receive": "Information Not Available"
         })
+        del model_input
+        gc.collect()
 # Database me result log karein
 
         log_prediction(
