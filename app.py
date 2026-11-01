@@ -7,7 +7,22 @@ from flask import Flask, render_template, request
 import tensorflow as tf
 from db import log_prediction, fetch_all_predictions
 app = Flask(__name__)
+import os
+# TensorFlow memory aur thread limiting
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
 
+import gc
+import tensorflow as tf
+
+# TensorFlow memory growth restrict
+try:
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+except Exception:
+    pass
 # Configure upload directory
 UPLOAD_FOLDER = os.path.join("static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
