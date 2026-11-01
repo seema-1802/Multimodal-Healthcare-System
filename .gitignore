@@ -1,0 +1,16 @@
+# Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# Database
+*.db
+healthcare.db
+
+# Uploads
+static/uploads/*
+!static/uploads/.gitkeep
+
+# System/IDE
+.vscode/
+.DS_Store

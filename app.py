@@ -43,6 +43,37 @@ BLOOD_COMPATIBILITY = {
     "AB-": {"donate": "AB+, AB-", "receive": "AB-, A-, B-, O-"},
     "Not_Valid": {"donate": "Invalid Sample / Unclear Slide", "receive": "Please re-test with a clear blood smear"}
 }
+import csv
+import io
+from flask import make_response
+
+@app.route("/export_csv")
+def export_csv():
+    records = fetch_all_predictions()
+    
+    # In-memory CSV file create karein
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header row
+    writer.writerow(["ID", "Patient Name", "Module Type", "Prediction Result", "Confidence (%)", "Additional Info", "Timestamp"])
+    
+    # Data rows
+    for row in records:
+        writer.writerow([
+            row["id"],
+            row["patient_name"],
+            row["module_type"],
+            row["prediction_result"],
+            row["confidence"],
+            row["additional_info"],
+            row["created_at"]
+        ])
+    
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=patient_diagnostic_records.csv"
+    response.headers["Content-type"] = "text/csv"
+    return response
 @app.route("/history")
 def history():
     records = fetch_all_predictions()
