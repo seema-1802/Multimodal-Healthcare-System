@@ -18,10 +18,43 @@ BRAIN_MODEL_PATH = os.path.join("models", "brain_tumor_mobilenetv2_finetuned.ker
 HEART_MODEL_PATH = os.path.join("models", "ecg_heart_disease_lstm.keras")
 BLOOD_MODEL_PATH = os.path.join("models", "blood_group_cnn_model.keras")
 
-brain_model = tf.keras.models.load_model(BRAIN_MODEL_PATH)
-heart_model = tf.keras.models.load_model(HEART_MODEL_PATH)
-blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
+# brain_model = tf.keras.models.load_model(BRAIN_MODEL_PATH)
+# heart_model = tf.keras.models.load_model(HEART_MODEL_PATH)
+# blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
+import gc
+import tensorflow as tf
 
+_brain_model = None
+_heart_model = None
+_blood_model = None
+
+def get_brain_model():
+    global _brain_model, _heart_model, _blood_model
+    # Baaki models ko memory se unload karein taaki RAM 512MB cross na kare
+    _heart_model = None
+    _blood_model = None
+    gc.collect()
+    if _brain_model is None:
+        _brain_model = tf.keras.models.load_model("path/to/brain_model.h5") # apna exact path daalein
+    return _brain_model
+
+def get_heart_model():
+    global _brain_model, _heart_model, _blood_model
+    _brain_model = None
+    _blood_model = None
+    gc.collect()
+    if _heart_model is None:
+        _heart_model = tf.keras.models.load_model("path/to/heart_model.h5") # apna exact path daalein
+    return _heart_model
+
+def get_blood_model():
+    global _brain_model, _heart_model, _blood_model
+    _brain_model = None
+    _heart_model = None
+    gc.collect()
+    if _blood_model is None:
+        _blood_model = tf.keras.models.load_model("path/to/blood_model.h5") # apna exact path daalein
+    return _blood_model
 BRAIN_CLASSES = ["glioma", "meningioma", "notumor", "pituitary"]
 HEART_CLASSES = [
     "Normal Beat",
@@ -107,7 +140,7 @@ def brain_tumor():
             img_resized = img.resize((224, 224))
             img_array = np.expand_dims(np.array(img_resized, dtype=np.float32), axis=0)
 
-            predictions = brain_model(img_array, training=False).numpy()[0]
+            predictions = get_brain_model()(img_array, training=False).numpy()[0]
             pred_idx = np.argmax(predictions)
             
             prediction_result = {
@@ -170,7 +203,7 @@ def heart_disease():
         if signal_array is not None:
             model_input = signal_array.reshape(1, 187, 1)
 
-            predictions = heart_model(model_input, training=False).numpy()[0]
+            predictions = get_heart_model()(model_input, training=False).numpy()[0]
             pred_idx = np.argmax(predictions)
             
             prediction_result = {
@@ -219,7 +252,7 @@ def blood_group():
         img_array = np.expand_dims(img_array, axis=0)
 
         # Predict
-        predictions = blood_model(img_array, training=False).numpy()[0]
+        predictions = get_blood_model()(img_array, training=False).numpy()[0]
         pred_idx = np.argmax(predictions)
         predicted_class = BLOOD_CLASSES[pred_idx]
         confidence_val = round(float(predictions[pred_idx]) * 100, 2)
