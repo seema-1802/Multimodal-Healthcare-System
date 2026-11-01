@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Disease & Arrhythmia Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <h1>❤️ Heart Disease & ECG Diagnostic System</h1>
+        <p>Analyze sequential ECG signals (187 time-series readings) using the trained 1D-CNN + LSTM hybrid network.</p>
+
+        {% if error %}
+        <div class="error-box">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="/heart_disease" method="POST" enctype="multipart/form-data" class="ecg-form">
+            <div class="form-group">
+                <label><strong>Option 1: Upload ECG Signal (.csv / .txt)</strong></label>
+                <input type="file" name="file" accept=".csv, .txt">
+            </div>
+
+            <div class="divider"><span>OR</span></div>
+
+            <div class="form-group">
+                <label><strong>Option 2: Paste Comma-Separated Values</strong></label>
+                <textarea name="ecg_text" rows="4" placeholder="0.95, 0.82, 0.45, 0.12, 0.05, 0.23, ..."></textarea>
+            </div>
+
+            <button type="submit">Run Arrhythmia Diagnosis</button>
+        </form>
+
+        {% if result %}
+        <div class="result-box">
+            <h2>Diagnostic Assessment</h2>
+            <div class="result-details">
+                <p class="prediction">Predicted Category: <strong>{{ result.class }}</strong></p>
+                <p class="confidence">Confidence: <strong>{{ result.confidence }}%</strong></p>
+                
+                <h3>Arrhythmia Probability Breakdown</h3>
+                <ul>
+                    {% for item in breakdown %}
+                    <li>
+                        <span>{{ item.name }}</span>
+                        <span>{{ item.prob }}%</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                {% if preview %}
+                <div class="preview-box">
+                    <p><small>First 25 normalized signal values analyzed:</small></p>
+                    <code>{{ preview }}</code>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

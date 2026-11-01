@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Group Detection | MediAI</title>
+    <!-- Single CSS file reference -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="container">
+        <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i> &larr; Back to Dashboard</a>
+
+        <header>
+            <div class="icon-circle mb-3">
+                <i class="fa-solid fa-droplet"></i>
+            </div>
+            <h1>Blood Group Classification</h1>
+            <p>Upload a microscopic agglutination test slide image to detect ABO & Rh blood type</p>
+        </header>
+
+        {% if error %}
+        <div class="error-box">
+            <p><strong>Error:</strong> {{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Form matches POST /predict_blood_group -->
+        <form action="/predict_blood_group" method="POST" enctype="multipart/form-data">
+            <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: #dc2626; margin-bottom: 1rem;"></i>
+                <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Click or Drop Blood Slide Image</h3>
+                <p style="color: #718096; font-size: 0.85rem;">Accepts JPG, JPEG, PNG (Agglutination slides)</p>
+                
+                <input type="file" name="file" id="fileInput" accept="image/*" style="display: none;" onchange="previewFile(event)" required>
+                
+                <div id="previewContainer" style="display: none; margin-top: 1rem;">
+                    <img id="imagePreview" src="#" alt="Slide Preview" class="preview-img">
+                    <p id="fileName" style="font-size: 0.8rem; color: #4a5568; margin-top: 0.5rem;"></p>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <button type="submit" class="btn-predict" style="width: 100%; padding: 0.85rem; border-radius: 8px; color: #fff;">
+                    <i class="fa-solid fa-microscope"></i> Analyze Blood Slide
+                </button>
+            </div>
+        </form>
+
+        <!-- Prediction Results -->
+        {% if prediction %}
+        <div class="result-box result-card animate-up" style="margin-top: 2rem; padding: 1.5rem; border-radius: 12px; background: #fff;">
+            <span class="status active" style="margin-top: 0; margin-bottom: 1rem;">Analysis Completed</span>
+            
+            <div class="result-content">
+                {% if img_path %}
+                <img src="/{{ img_path }}" alt="Analyzed Slide" class="preview-img">
+                {% endif %}
+                
+                <div class="result-details">
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 0.2rem;">Identified Blood Group</p>
+                    <h2 class="blood-type-display" style="font-size: 2.4rem; color: #dc2626; margin-bottom: 0.5rem;">{{ prediction }}</h2>
+                    <p class="confidence">Confidence: <strong>{{ confidence }}%</strong></p>
+                    
+                    <ul style="margin-top: 1rem;">
+                        <li><span>Can Donate To:</span> <strong>{{ donate_to }}</strong></li>
+                        <li><span>Can Receive From:</span> <strong>{{ receive_from }}</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script>
+        function previewFile(event) {
+            const input = event.target;
+            const preview = document.getElementById('imagePreview');
+            const container = document.getElementById('previewContainer');
+            const fileName = document.getElementById('fileName');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    container.style.display = 'block';
+                    fileName.innerText = input.files[0].name;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+</body>
+</html>

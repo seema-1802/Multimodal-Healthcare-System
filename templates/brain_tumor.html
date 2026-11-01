@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <h1>Brain Tumor MRI Diagnostics</h1>
+        <p>Upload a brain MRI scan image (.jpg, .jpeg, .png)</p>
+
+        <form action="/brain_tumor" method="POST" enctype="multipart/form-data" class="upload-form">
+            <input type="file" name="file" accept="image/*" required>
+            <button type="submit">Analyze MRI Scan</button>
+        </form>
+
+        {% if result %}
+        <div class="result-box">
+            <h2>Diagnostic Result</h2>
+            <div class="result-content">
+                <img src="{{ image_url }}" alt="Uploaded MRI Scan" class="preview-img">
+                <div class="result-details">
+                    <p class="prediction">Predicted: <strong>{{ result.class }}</strong></p>
+                    <p class="confidence">Confidence: <strong>{{ result.confidence }}%</strong></p>
+                    
+                    <h3>Confidence Breakdown</h3>
+                    <ul>
+                        {% for item in breakdown %}
+                        <li>
+                            <span>{{ item.name }}</span>
+                            <span>{{ item.prob }}%</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
