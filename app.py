@@ -154,10 +154,10 @@ def brain_tumor():
             for name, prob in zip(BRAIN_CLASSES, predictions)
         ]
 
-        # Explicit memory cleanup
+       # Predictions ke theek baad:
         del img_array
+        tf.keras.backend.clear_session()
         gc.collect()
-
         log_prediction(
             patient_name="Guest",
             module_type="Brain Tumor",
@@ -221,6 +221,7 @@ def heart_disease():
             # Explicit memory cleanup
             del model_input
             del signal_array
+            tf.keras.backend.clear_session()
             gc.collect()
 
             log_prediction(
@@ -267,8 +268,9 @@ def blood_group():
             "receive": "Information Not Available"
         })
 
-        # Explicit memory cleanup (img_array cleaned correctly)
+       # Predictions ke theek baad:
         del img_array
+        tf.keras.backend.clear_session()
         gc.collect()
 
         log_prediction(
