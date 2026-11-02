@@ -1,57 +1,52 @@
 import os
 import io
+import csv
+import gc
 import numpy as np
 import pandas as pd
 from PIL import Image
-from flask import Flask, render_template, request
-import tensorflow as tf
-from db import log_prediction, fetch_all_predictions
-app = Flask(__name__)
-import os
+from flask import Flask, render_template, request, make_response
 
-# TensorFlow memory aur thread limiting
+# TensorFlow CPU & Thread Limiting (Prevents Render 512MB RAM Crash)
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
 os.environ["TF_NUM_INTEROP_THREADS"] = "1"
 
-import gc
 import tensorflow as tf
 
-# TensorFlow memory growth restrict
 try:
     tf.config.threading.set_inter_op_parallelism_threads(1)
     tf.config.threading.set_intra_op_parallelism_threads(1)
 except Exception:
     pass
-# Configure upload directory
-UPLOAD_FOLDER = os.path.join("static", "uploads")
+
+from db import log_prediction, fetch_all_predictions
+
+app = Flask(__name__)
+
+# Base directory & Uploads configuration
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# ----------------- Load Models -----------------
-BRAIN_MODEL_PATH = os.path.join("models", "brain_tumor_mobilenetv2_finetuned.keras")
-HEART_MODEL_PATH = os.path.join("models", "ecg_heart_disease_lstm.keras")
-BLOOD_MODEL_PATH = os.path.join("models", "blood_group_cnn_model.keras")
+# Model Relative Paths
+BRAIN_MODEL_PATH = os.path.join(BASE_DIR, "models", "brain_tumor_mobilenetv2_finetuned.keras")
+HEART_MODEL_PATH = os.path.join(BASE_DIR, "models", "ecg_heart_disease_lstm.keras")
+BLOOD_MODEL_PATH = os.path.join(BASE_DIR, "models", "blood_group_cnn_model.keras")
 
-# brain_model = tf.keras.models.load_model(BRAIN_MODEL_PATH)
-# heart_model = tf.keras.models.load_model(HEART_MODEL_PATH)
-# blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
-import gc
-import tensorflow as tf
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _brain_model = None
 _heart_model = None
 _blood_model = None
 
 def get_brain_model():
     global _brain_model, _heart_model, _blood_model
-    # Baaki models ko memory se unload karein taaki RAM 512MB cross na kare
     _heart_model = None
     _blood_model = None
     gc.collect()
     if _brain_model is None:
-        _brain_model = tf.keras.models.load_model("path/to/brain_model.h5") # apna exact path daalein
+        _brain_model = tf.keras.models.load_model(BRAIN_MODEL_PATH)
     return _brain_model
 
 def get_heart_model():
@@ -60,7 +55,7 @@ def get_heart_model():
     _blood_model = None
     gc.collect()
     if _heart_model is None:
-        _heart_model = tf.keras.models.load_model("path/to/heart_model.h5") # apna exact path daalein
+        _heart_model = tf.keras.models.load_model(HEART_MODEL_PATH)
     return _heart_model
 
 def get_blood_model():
@@ -69,10 +64,9 @@ def get_blood_model():
     _heart_model = None
     gc.collect()
     if _blood_model is None:
-        # Aapka exact relative path:
-        model_path = os.path.join(BASE_DIR, "models", "blood_group_cnn_model.keras")
-        _blood_model = tf.keras.models.load_model(model_path)
+        _blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
     return _blood_model
+
 BRAIN_CLASSES = ["glioma", "meningioma", "notumor", "pituitary"]
 HEART_CLASSES = [
     "Normal Beat",
@@ -94,22 +88,24 @@ BLOOD_COMPATIBILITY = {
     "AB-": {"donate": "AB+, AB-", "receive": "AB-, A-, B-, O-"},
     "Not_Valid": {"donate": "Invalid Sample / Unclear Slide", "receive": "Please re-test with a clear blood smear"}
 }
-import csv
-import io
-from flask import make_response
+
+# ----------------- Navigation & Export Routes -----------------
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/history")
+def history():
+    records = fetch_all_predictions()
+    return render_template("history.html", records=records)
 
 @app.route("/export_csv")
 def export_csv():
     records = fetch_all_predictions()
-    
-    # In-memory CSV file create karein
     output = io.StringIO()
     writer = csv.writer(output)
-    
-    # Header row
     writer.writerow(["ID", "Patient Name", "Module Type", "Prediction Result", "Confidence (%)", "Additional Info", "Timestamp"])
     
-    # Data rows
     for row in records:
         writer.writerow([
             row["id"],
@@ -125,13 +121,6 @@ def export_csv():
     response.headers["Content-Disposition"] = "attachment; filename=patient_diagnostic_records.csv"
     response.headers["Content-type"] = "text/csv"
     return response
-@app.route("/history")
-def history():
-    records = fetch_all_predictions()
-    return render_template("history.html", records=records)
-@app.route("/")
-def home():
-    return render_template("index.html")
 
 # ----------------- Module 1: Brain Tumor -----------------
 @app.route("/brain_tumor", methods=["GET", "POST"])
@@ -141,42 +130,41 @@ def brain_tumor():
     breakdown = None
 
     if request.method == "POST":
-        if "file" not in request.files:
-            return render_template("brain_tumor.html", error="No file uploaded")
+        if "file" not in request.files or request.files["file"].filename == "":
+            return render_template("brain_tumor.html", error="Please upload a valid MRI scan.")
         
         file = request.files["file"]
-        if file.filename == "":
-            return render_template("brain_tumor.html", error="No file selected")
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+        file.save(filepath)
+        image_url = os.path.join("static", "uploads", file.filename)
 
-        if file:
-            filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-            file.save(filepath)
-            image_url = filepath
+        img = Image.open(filepath).convert("RGB")
+        img_resized = img.resize((224, 224))
+        img_array = np.expand_dims(np.array(img_resized, dtype=np.float32), axis=0)
 
-            # Image Preprocessing (224x224)
-            img = Image.open(filepath).convert("RGB")
-            img_resized = img.resize((224, 224))
-            img_array = np.expand_dims(np.array(img_resized, dtype=np.float32), axis=0)
+        predictions = get_brain_model()(img_array, training=False).numpy()[0]
+        pred_idx = np.argmax(predictions)
+        
+        prediction_result = {
+            "class": BRAIN_CLASSES[pred_idx],
+            "confidence": round(float(predictions[pred_idx]) * 100, 2)
+        }
+        breakdown = [
+            {"name": name, "prob": round(float(prob) * 100, 2)}
+            for name, prob in zip(BRAIN_CLASSES, predictions)
+        ]
 
-            predictions = get_brain_model()(img_array, training=False).numpy()[0]
-            pred_idx = np.argmax(predictions)
-            
-            prediction_result = {
-                "class": BRAIN_CLASSES[pred_idx],
-                "confidence": round(float(predictions[pred_idx]) * 100, 2)
-            }
-            breakdown = [
-                {"name": name, "prob": round(float(prob) * 100, 2)}
-                for name, prob in zip(BRAIN_CLASSES, predictions)
-            ]
-# Database me result log karein
-            log_prediction(
-                patient_name="Guest",
-                module_type="Brain Tumor",
-                prediction_result=prediction_result["class"],
-                confidence=prediction_result["confidence"],
-                additional_info="MRI Scan Analysis"
-            )
+        # Explicit memory cleanup
+        del img_array
+        gc.collect()
+
+        log_prediction(
+            patient_name="Guest",
+            module_type="Brain Tumor",
+            prediction_result=prediction_result["class"],
+            confidence=prediction_result["confidence"],
+            additional_info="MRI Scan Analysis"
+        )
     return render_template("brain_tumor.html", result=prediction_result, image_url=image_url, breakdown=breakdown)
 
 # ----------------- Module 2: Heart Disease (ECG) -----------------
@@ -190,7 +178,6 @@ def heart_disease():
     if request.method == "POST":
         signal_array = None
 
-        # Mode A: Upload CSV/TXT file containing ECG points
         if "file" in request.files and request.files["file"].filename != "":
             file = request.files["file"]
             try:
@@ -202,7 +189,6 @@ def heart_disease():
             except Exception as e:
                 error = f"Error reading file: {str(e)}"
 
-        # Mode B: Comma-separated values pasted directly in textarea
         elif request.form.get("ecg_text", "").strip():
             try:
                 text_input = request.form.get("ecg_text")
@@ -213,11 +199,9 @@ def heart_disease():
                 signal_array = signal_vals
             except Exception as e:
                 error = "Invalid numerical input. Please paste comma-separated numbers."
-
         else:
             error = "Please upload an ECG CSV/TXT file or paste sequence points."
 
-        # Perform Prediction if sequence was extracted
         if signal_array is not None:
             model_input = signal_array.reshape(1, 187, 1)
 
@@ -233,7 +217,12 @@ def heart_disease():
                 for name, prob in zip(HEART_CLASSES, predictions)
             ]
             raw_signal_preview = [round(float(v), 4) for v in signal_array[:25]]
-# Database me result log karein
+
+            # Explicit memory cleanup
+            del model_input
+            del signal_array
+            gc.collect()
+
             log_prediction(
                 patient_name="Guest",
                 module_type="Heart Disease",
@@ -251,8 +240,7 @@ def heart_disease():
     )
 
 # ----------------- Module 3: Blood Group Classification -----------------
-# Dono routes handle honge: page kholne ke liye aur form submission ke liye
-@app.route("/blood_group", methods=["GET"])
+@app.route("/blood_group", methods=["GET", "POST"])
 @app.route("/predict_blood_group", methods=["GET", "POST"])
 def blood_group():
     if request.method == "POST":
@@ -262,14 +250,13 @@ def blood_group():
         file = request.files["file"]
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
         file.save(filepath)
+        display_img_path = os.path.join("static", "uploads", file.filename)
 
-        # Image Preprocessing (224x224 RGB, scaled 0 to 1)
         img = Image.open(filepath).convert("RGB")
         img_resized = img.resize((224, 224))
         img_array = np.array(img_resized, dtype=np.float32) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
-        # Predict
         predictions = get_blood_model()(img_array, training=False).numpy()[0]
         pred_idx = np.argmax(predictions)
         predicted_class = BLOOD_CLASSES[pred_idx]
@@ -279,9 +266,10 @@ def blood_group():
             "donate": "Information Not Available",
             "receive": "Information Not Available"
         })
-        del model_input
+
+        # Explicit memory cleanup (img_array cleaned correctly)
+        del img_array
         gc.collect()
-# Database me result log karein
 
         log_prediction(
             patient_name="Guest",
@@ -290,19 +278,17 @@ def blood_group():
             confidence=confidence_val,
             additional_info=f"Donate: {compat['donate']} | Receive: {compat['receive']}"
         )
-        # Aapke HTML template ke exact variables:
+
         return render_template(
             "blood_group.html",
             prediction=predicted_class,
             confidence=confidence_val,
             donate_to=compat["donate"],
             receive_from=compat["receive"],
-            img_path=filepath
+            img_path=display_img_path
         )
 
     return render_template("blood_group.html")
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
-   
-  
