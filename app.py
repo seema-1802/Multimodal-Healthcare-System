@@ -42,8 +42,7 @@ _blood_model = None
 
 def get_brain_model():
     global _brain_model, _heart_model, _blood_model
-    _heart_model = None
-    _blood_model = None
+   
     gc.collect()
     if _brain_model is None:
         _brain_model = tf.keras.models.load_model(BRAIN_MODEL_PATH)
@@ -51,8 +50,7 @@ def get_brain_model():
 
 def get_heart_model():
     global _brain_model, _heart_model, _blood_model
-    _brain_model = None
-    _blood_model = None
+ 
     gc.collect()
     if _heart_model is None:
         _heart_model = tf.keras.models.load_model(HEART_MODEL_PATH)
@@ -60,8 +58,7 @@ def get_heart_model():
 
 def get_blood_model():
     global _brain_model, _heart_model, _blood_model
-    _brain_model = None
-    _heart_model = None
+   
     gc.collect()
     if _blood_model is None:
         _blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
@@ -156,7 +153,7 @@ def brain_tumor():
 
        # Predictions ke theek baad:
         del img_array
-        tf.keras.backend.clear_session()
+        
         gc.collect()
         log_prediction(
             patient_name="Guest",
@@ -221,7 +218,7 @@ def heart_disease():
             # Explicit memory cleanup
             del model_input
             del signal_array
-            tf.keras.backend.clear_session()
+            
             gc.collect()
 
             log_prediction(
@@ -270,7 +267,7 @@ def blood_group():
 
        # Predictions ke theek baad:
         del img_array
-        tf.keras.backend.clear_session()
+        
         gc.collect()
 
         log_prediction(
