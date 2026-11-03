@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from flask import Flask, render_template, request, make_response
-
+from setup_sqlite import init_db
 # TensorFlow CPU & Thread Limiting (Prevents Render 512MB RAM Crash)
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["OMP_NUM_THREADS"] = "1"
