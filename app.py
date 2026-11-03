@@ -57,13 +57,23 @@ def get_heart_model():
     if _heart_model is None:
         _heart_model = tf.keras.models.load_model(HEART_MODEL_PATH)
     return _heart_model
-
 def get_blood_model():
     global _brain_model, _heart_model, _blood_model
-   
+
+    # Release other models to reduce RAM usage on Render
+    if _brain_model is not None:
+        del _brain_model
+        _brain_model = None
+
+    if _heart_model is not None:
+        del _heart_model
+        _heart_model = None
+
     gc.collect()
+
     if _blood_model is None:
         _blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
+
     return _blood_model
 
 BRAIN_CLASSES = ["glioma", "meningioma", "notumor", "pituitary"]
