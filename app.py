@@ -24,6 +24,8 @@ except Exception:
 from db import log_prediction, fetch_all_predictions
 
 app = Flask(__name__)
+from setup_sqlite import init_db
+init_db()
 
 # Base directory & Uploads configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
