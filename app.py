@@ -249,55 +249,136 @@ def heart_disease():
         preview=raw_signal_preview
     )
 
+
 # ----------------- Module 3: Blood Group Classification -----------------
+
 @app.route("/blood_group", methods=["GET", "POST"])
 @app.route("/predict_blood_group", methods=["GET", "POST"])
 def blood_group():
+
+    print("\n========== BLOOD GROUP ROUTE START ==========", flush=True)
+    print("METHOD:", request.method, flush=True)
+    print("PATH:", request.path, flush=True)
+    print("CONTENT TYPE:", request.content_type, flush=True)
+    print("FILES:", list(request.files.keys()), flush=True)
+
     if request.method == "POST":
-        if "file" not in request.files or request.files["file"].filename == "":
-            return render_template("blood_group.html", error="Please upload a blood slide image.")
 
-        file = request.files["file"]
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-        file.save(filepath)
-        display_img_path = os.path.join("static", "uploads", file.filename)
+        try:
+            print("STEP 1: POST REQUEST RECEIVED", flush=True)
 
-        img = Image.open(filepath).convert("RGB")
-        img_resized = img.resize((224, 224))
-        img_array = np.array(img_resized, dtype=np.float32) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
+            if "file" not in request.files:
+                print("ERROR: FILE KEY NOT FOUND", flush=True)
+                return render_template(
+                    "blood_group.html",
+                    error="File field missing. Check HTML input name."
+                )
 
-        predictions = get_blood_model()(img_array, training=False).numpy()[0]
-        pred_idx = np.argmax(predictions)
-        predicted_class = BLOOD_CLASSES[pred_idx]
-        confidence_val = round(float(predictions[pred_idx]) * 100, 2)
+            file = request.files["file"]
 
-        compat = BLOOD_COMPATIBILITY.get(predicted_class, {
-            "donate": "Information Not Available",
-            "receive": "Information Not Available"
-        })
+            print("STEP 2: FILE RECEIVED:", file.filename, flush=True)
 
-       # Predictions ke theek baad:
-        del img_array
-        
-        gc.collect()
+            if file.filename == "":
+                print("ERROR: EMPTY FILE", flush=True)
+                return render_template(
+                    "blood_group.html",
+                    error="Please select an image."
+                )
 
-        log_prediction(
-            patient_name="Guest",
-            module_type="Blood Group",
-            prediction_result=predicted_class,
-            confidence=confidence_val,
-            additional_info=f"Donate: {compat['donate']} | Receive: {compat['receive']}"
-        )
+            filepath = os.path.join(
+                app.config["UPLOAD_FOLDER"],
+                file.filename
+            )
 
-        return render_template(
-            "blood_group.html",
-            prediction=predicted_class,
-            confidence=confidence_val,
-            donate_to=compat["donate"],
-            receive_from=compat["receive"],
-            img_path=display_img_path
-        )
+            file.save(filepath)
+
+            print("STEP 3: IMAGE SAVED:", filepath, flush=True)
+
+            img = Image.open(filepath).convert("RGB")
+            img_resized = img.resize((224, 224))
+
+            img_array = np.array(
+                img_resized,
+                dtype=np.float32
+            ) / 255.0
+
+            img_array = np.expand_dims(img_array, axis=0)
+
+            print("STEP 4: IMAGE PREPROCESSING DONE", flush=True)
+            print("IMAGE SHAPE:", img_array.shape, flush=True)
+
+            print("STEP 5: LOADING BLOOD MODEL", flush=True)
+
+            model = get_blood_model()
+
+            print("STEP 6: BLOOD MODEL LOADED", flush=True)
+
+            predictions = model(
+                img_array,
+                training=False
+            ).numpy()[0]
+
+            print("STEP 7: PREDICTION COMPLETED", flush=True)
+            print("PREDICTION SHAPE:", predictions.shape, flush=True)
+
+            pred_idx = np.argmax(predictions)
+
+            predicted_class = BLOOD_CLASSES[pred_idx]
+
+            confidence_val = round(
+                float(predictions[pred_idx]) * 100, 2
+            )
+
+            print("PREDICTED CLASS:", predicted_class, flush=True)
+            print("CONFIDENCE:", confidence_val, flush=True)
+
+            compat = BLOOD_COMPATIBILITY.get(
+                predicted_class,
+                {
+                    "donate": "Information Not Available",
+                    "receive": "Information Not Available"
+                }
+            )
+
+            del img_array
+            del img
+            del img_resized
+            gc.collect()
+
+            print("STEP 8: SAVING DATABASE RECORD", flush=True)
+
+            log_prediction(
+                patient_name="Guest",
+                module_type="Blood Group",
+                prediction_result=predicted_class,
+                confidence=confidence_val,
+                additional_info=(
+                    f"Donate: {compat['donate']} | "
+                    f"Receive: {compat['receive']}"
+                )
+            )
+
+            print("STEP 9: DATABASE SAVED", flush=True)
+            print("STEP 10: RENDERING RESULT", flush=True)
+
+            return render_template(
+                "blood_group.html",
+                prediction=predicted_class,
+                confidence=confidence_val,
+                donate_to=compat["donate"],
+                receive_from=compat["receive"],
+                img_path=os.path.join("static", "uploads", file.filename)
+            )
+
+        except Exception as e:
+            app.logger.exception("BLOOD GROUP PREDICTION FAILED")
+
+            return render_template(
+                "blood_group.html",
+                error=f"Prediction Error: {str(e)}"
+            ), 500
+
+    print("GET REQUEST: BLOOD GROUP PAGE", flush=True)
 
     return render_template("blood_group.html")
 
