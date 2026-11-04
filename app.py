@@ -60,7 +60,6 @@ def get_heart_model():
 def get_blood_model():
     global _brain_model, _heart_model, _blood_model
 
-    # Release other models to reduce RAM usage on Render
     if _brain_model is not None:
         del _brain_model
         _brain_model = None
@@ -72,7 +71,14 @@ def get_blood_model():
     gc.collect()
 
     if _blood_model is None:
-        _blood_model = tf.keras.models.load_model(BLOOD_MODEL_PATH)
+        print("Loading blood model...", flush=True)
+
+        _blood_model = tf.keras.models.load_model(
+            BLOOD_MODEL_PATH,
+            compile=False
+        )
+
+        print("Blood model loaded!", flush=True)
 
     return _blood_model
 
